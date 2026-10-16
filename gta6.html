@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Tatay Fighting Crime: Manila Nights</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #090d16;
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+    .arcade-font {
+      font-family: 'Black Ops One', cursive, sans-serif;
+      letter-spacing: 1px;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+    .hud-btn {
+      transition: transform 0.1s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+    .hud-btn:active {
+      transform: scale(0.94);
+    }
+    .super-glow {
+      animation: pulseGlow 1.1s infinite alternate;
+    }
+    @keyframes pulseGlow {
+      from { box-shadow: 0 0 8px #f59e0b, 0 0 16px #eab308; }
+      to { box-shadow: 0 0 18px #f59e0b, 0 0 32px #fef08a; }
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 select-none">
+
+  <!-- Main Arcade Cabinet Wrapper -->
+  <div class="relative w-full max-w-5xl h-full max-h-[760px] flex flex-col bg-slate-900 sm:rounded-2xl overflow-hidden shadow-2xl border-0 sm:border-4 border-slate-700">
+
+    <!-- TOP BAR HUD -->
+    <div class="bg-slate-900/95 border-b-2 border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 z-20">
+      <!-- Rank Badge & Wave -->
+      <div class="flex items-center gap-3">
+        <div id="badgeContainer" class="flex items-center gap-2 bg-slate-800/90 border border-amber-500/40 px-2.5 py-1 rounded-xl shadow-inner">
+          <div id="rankIcon" class="w-8 h-8 flex items-center justify-center rounded-lg bg-amber-500/20 text-amber-400 font-bold text-lg">
+            ⭐
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">PNP Rank</div>
+            <div id="rankName" class="text-xs sm:text-sm font-black text-amber-400 leading-none">Patrolman</div>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/90 border border-slate-700 px-3 py-1 rounded-xl">
+          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Wave</div>
+          <div id="waveDisplay" class="text-xs sm:text-sm font-black text-white leading-none">1</div>
+        </div>
+      </div>
+
+      <!-- Pesos, Kills & Best Score -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <div class="bg-slate-800/90 border border-emerald-500/40 px-3 py-1 rounded-xl flex items-center gap-1.5">
+          <span class="text-emerald-400 font-black text-sm sm:text-base">₱</span>
+          <span id="coinDisplay" class="text-sm sm:text-base font-black text-emerald-300">0</span>
+        </div>
+
+        <div class="bg-slate-800/90 border border-slate-700 px-3 py-1 rounded-xl">
+          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Score / Best</div>
+          <div class="text-xs sm:text-sm font-black text-sky-400 leading-none">
+            <span id="scoreDisplay">0</span> <span class="text-slate-500">/</span> <span id="highScoreDisplay" class="text-amber-300">0</span>
+          </div>
+        </div>
+
+        <!-- Shield Status Indicator -->
+        <button id="buyShieldBtn" class="hud-btn bg-sky-900/80 hover:bg-sky-800 border border-sky-400/50 px-2.5 py-1 rounded-xl flex items-center gap-1.5 text-xs font-bold text-sky-200" title="Buy Vest Shield (Blocks 1 Hit)">
+          <span>🦺</span>
+          <span id="shieldText">₱150</span>
+        </button>
+
+        <!-- Auto-Fire Toggle -->
+        <button id="autoFireBtn" class="hud-btn bg-emerald-700 hover:bg-emerald-600 border border-emerald-400 px-2.5 py-1.5 rounded-xl text-xs font-black text-white">
+          AUTO: ON
+        </button>
+
+        <!-- Sound Toggle -->
+        <button id="muteBtn" class="hud-btn bg-slate-800 hover:bg-slate-700 border border-slate-600 p-1.5 rounded-xl text-slate-200" title="Toggle Sound">
+          🔊
+        </button>
+      </div>
+    </div>
+
+    <!-- CANVAS VIEWPORT -->
+    <div id="canvasContainer" class="relative flex-1 w-full bg-slate-950 overflow-hidden">
+      <canvas id="gameCanvas"></canvas>
+
+      <!-- Boss Health Bar Overlay -->
+      <div id="bossHud" class="hidden absolute top-3 left-1/2 -translate-x-1/2 w-11/12 max-w-md bg-slate-900/90 border-2 border-red-600 rounded-xl p-2 shadow-lg pointer-events-none z-10">
+        <div class="flex justify-between items-center text-xs font-black uppercase text-red-400 mb-1">
+          <span id="bossName">CRIME LORD BOSS</span>
+          <span id="bossHpText">1000 / 1000</span>
+        </div>
+        <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden">
+          <div id="bossHpBar" class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-yellow-400 transition-all duration-100" style="width: 100%;"></div>
+        </div>
+      </div>
+
+      <!-- Rank Up Banner Notification -->
+      <div id="rankToast" class="pointer-events-none opacity-0 transition-opacity duration-300 absolute top-14 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 text-slate-950 font-black px-5 py-1.5 rounded-full shadow-xl border-2 border-white text-xs sm:text-sm uppercase tracking-wider z-20">
+        ⭐ Promoted to Corporal! ⭐
+      </div>
+
+      <!-- START / GAME OVER MODAL OVERLAY -->
+      <div id="overlayModal" class="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 z-30">
+        <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl max-w-md w-full p-5 sm:p-6 text-center shadow-2xl">
+          <div class="inline-block bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs font-extrabold px-3 py-0.5 rounded-full mb-2">
+            MANILA ARCADE EDITION
+          </div>
+          <h1 id="modalTitle" class="arcade-font text-3xl sm:text-4xl text-white tracking-wider mb-1 drop-shadow">
+            TATAY FIGHTING CRIME
+          </h1>
+          <p id="modalSubtitle" class="text-xs sm:text-sm text-slate-300 mb-4">
+            Hold the street line! Eliminate waves of criminals & mutant zombies before they land a single punch.
+          </p>
+
+          <!-- Stats Summary Box (Shown on Game Over) -->
+          <div id="gameOverStats" class="hidden bg-slate-800/90 border border-slate-700 rounded-xl p-3 mb-4 grid grid-cols-3 gap-2 text-center">
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase font-bold">Score</div>
+              <div id="finalScore" class="text-base font-black text-sky-400">0</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase font-bold">Wave Reached</div>
+              <div id="finalWave" class="text-base font-black text-white">1</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase font-bold">Highest Rank</div>
+              <div id="finalRank" class="text-xs font-black text-amber-400 mt-0.5">Patrolman</div>
+            </div>
+          </div>
+
+          <!-- Unlocked Ranks Showcase -->
+          <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3 mb-4 text-left">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex justify-between">
+              <span>PNP Career Badges</span>
+              <span id="badgeProgressText" class="text-amber-400">1 / 7 Unlocked</span>
+            </div>
+            <div id="badgesGrid" class="grid grid-cols-7 gap-1 text-center"></div>
+          </div>
+
+          <div class="text-xs text-slate-400 mb-4 space-y-1">
+            <p><strong class="text-slate-200">Desktop:</strong> <kbd class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600">A</kbd>/<kbd class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600">D</kbd> or Arrows to Move • <kbd class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600">Space</kbd>/Click to Shoot • <kbd class="bg-slate-800 px-1.5 py-0.5 rounded border border-slate-600">1-5</kbd> Weapons</p>
+            <p><strong class="text-slate-200">Mobile:</strong> Use Bottom Controls + Auto-Fire or Tap Screen to Shoot</p>
+          </div>
+
+          <button id="startBtn" class="hud-btn w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-slate-950 font-black text-lg tracking-wide shadow-lg border-2 border-amber-200">
+            PATROL THE STREETS ▶
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM CONTROLS & WEAPON SHOP HUD -->
+    <div class="bg-slate-900 border-t-2 border-slate-800 px-2 sm:px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 z-20">
+
+      <!-- Left: Movement & Fire Touch Controls -->
+      <div class="flex items-center justify-between w-full sm:w-auto gap-1.5">
+        <div class="flex items-center gap-1.5">
+          <button id="moveLeftBtn" class="hud-btn w-12 h-11 sm:w-11 sm:h-11 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 flex items-center justify-center text-lg font-black text-white select-none">
+            ◀
+          </button>
+          <button id="moveRightBtn" class="hud-btn w-12 h-11 sm:w-11 sm:h-11 rounded-xl bg-slate-800 active:bg-slate-700 border border-slate-600 flex items-center justify-center text-lg font-black text-white select-none">
+            ▶
+          </button>
+        </div>
+
+        <!-- Super Saiyang / Backup Mode Button -->
+        <button id="superBtn" class="hud-btn flex-1 sm:flex-initial px-3 h-11 rounded-xl bg-slate-800 border border-amber-500/50 flex items-center justify-center gap-1.5 text-xs font-black uppercase text-amber-300 relative overflow-hidden">
+          <div id="superFill" class="absolute left-0 bottom-0 top-0 bg-amber-500/30 transition-all duration-150" style="width: 0%;"></div>
+          <span class="relative z-10">🔥 SUPER</span>
+          <span id="superStatus" class="relative z-10 text-[10px] text-amber-200">(0%)</span>
+        </button>
+
+        <!-- Manual Fire Button for Mobile -->
+        <button id="fireBtn" class="hud-btn sm:hidden px-4 h-11 rounded-xl bg-red-600 active:bg-red-500 border border-red-400 font-black text-xs uppercase text-white">
+          FIRE 🔫
+        </button>
+      </div>
+
+      <!-- Right: 5 Weapons Bar -->
+      <div id="weaponBar" class="grid grid-cols-5 gap-1.5 w-full sm:w-auto flex-1 max-w-xl">
+        <!-- Dynamically populated by JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /**************************************************************
+     * SYNTHESIZED WEB AUDIO API SOUND ENGINE
+     **************************************************************/
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playShoot(weaponId) {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+
+        if (weaponId === 0) {
+          // Pistol crisp pop
+          this.tone(240, 60, 0.09, 'square', 0.2);
+          this.noise(0.06, 0.15);
+        } else if (weaponId === 1) {
+          // Shotgun heavy boom
+          this.tone(150, 35, 0.18, 'sawtooth', 0.32);
+          this.noise(0.16, 0.35);
+        } else if (weaponId === 2) {
+          // SCAR Assault Rifle punchy rapid shot
+          this.tone(300, 80, 0.07, 'sawtooth', 0.22);
+          this.noise(0.05, 0.18);
+        } else if (weaponId === 3) {
+          // Minigun brrrt
+          this.tone(360, 110, 0.05, 'square', 0.18);
+        } else if (weaponId === 4) {
+          // Plasma Laser Cannon
+          this.tone(880, 180, 0.2, 'sawtooth', 0.25);
+        }
+      }
+
+      playCoin() {
+        if (this.muted || !this.ctx) return;
+        this.tone(987.77, 1318.51, 0.09, 'sine', 0.15);
+      }
+
+      playRankUp() {
+        if (this.muted || !this.ctx) return;
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => this.tone(freq, freq, 0.14, 'triangle', 0.25), idx * 90);
+        });
+      }
+
+      playSuper() {
+        if (this.muted || !this.ctx) return;
+        this.tone(220, 880, 0.45, 'sawtooth', 0.3);
+      }
+
+      playGameOver() {
+        if (this.muted || !this.ctx) return;
+        const notes = [392, 349.23, 329.63, 261.63];
+        notes.forEach((freq, idx) => {
+          setTimeout(() => this.tone(freq, freq * 0.9, 0.22, 'sawtooth', 0.28), idx * 140);
+        });
+      }
+
+      tone(startFreq, endFreq, duration, type = 'square', gainVal = 0.2) {
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), this.ctx.currentTime + duration);
+
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+      }
+
+      noise(duration, gainVal = 0.2) {
+        try {
+          const bufferSize = this.ctx.sampleRate * duration;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(gainVal, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+          noise.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start();
+        } catch (e) {}
+      }
+    }
+
+    const sfx = new SoundEngine();
+
+    /**************************************************************
+     * GAME CONFIGURATION: WEAPONS, RANKS & QUOTES
+     **************************************************************/
+    const WEAPONS = [
+      {
+        id: 0,
+        key: '1',
+        name: '9mm Pistol',
+        shortName: 'Pistol',
+        cost: 0,
+        damage: 28,
+        fireRate: 240, // ms between shots
+        pellets: 1,
+        spread: 0.03,
+        speed: 15,
+        color: '#facc15',
+        pierce: 1,
+        knockback: 4,
+        unlocked: true
+      },
+      {
+        id: 1,
+        key: '2',
+        name: 'riot Shotgun',
+        shortName: 'Shotgun',
+        cost: 120,
+        damage: 24,
+        fireRate: 560,
+        pellets: 6,
+        spread: 0.24,
+        speed: 14,
+        color: '#fb923c',
+        pierce: 1,
+        knockback: 11,
+        unlocked: false
+      },
+      {
+        id: 2,
+        key: '3',
+        name: 'FN SCAR Rifle',
+        shortName: 'SCAR-H',
+        cost: 320,
+        damage: 42,
+        fireRate: 115,
+        pellets: 1,
+        spread: 0.05,
+        speed: 18,
+        color: '#38bdf8',
+        pierce: 1,
+        knockback: 5,
+        unlocked: false
+      },
+      {
+        id: 3,
+        key: '4',
+        name: 'Vulcan Minigun',
+        shortName: 'Minigun',
+        cost: 750,
+        damage: 34,
+        fireRate: 55,
+        pellets: 1,
+        spread: 0.12,
+        speed: 19,
+        color: '#f43f5e',
+        pierce: 1,
+        knockback: 3.5,
+        unlocked: false
+      },
+      {
+        id: 4,
+        key: '5',
+        name: 'Plasma Cannon',
+        shortName: 'Plasma',
+        cost: 1500,
+        damage: 145,
+        fireRate: 380,
+        pellets: 1,
+        spread: 0.01,
+        speed: 22,
+        color: '#a855f7',
+        pierce: 6,
+        knockback: 9,
+        unlocked: false
+      }
+    ];
+
+    const RANKS = [
+      { id: 0, title: 'Patrolman', minKills: 0, icon: '👮' },
+      { id: 1, title: 'Corporal', minKills: 12, icon: ' chev' },
+      { id: 2, title: 'Sergeant', minKills: 30, icon: '🛡️' },
+      { id: 3, title: 'Captain', minKills: 60, icon: '🎖️' },
+      { id: 4, title: 'Colonel', minKills: 100, icon: '🦅' },
+      { id: 5, title: 'General', minKills: 160, icon: '⭐' },
+      { id: 6, title: 'Legend Tatay', minKills: 240, icon: '👑' }
+    ];
+
+    const SPEECH_QUOTES = [
+      'Bawal yan!',
+      'Stop! Putangina!',
+      'Obosen!',
+      'My Gad, I hate drugs!',
+      'Bang! Bang!',
+      'Cleanup time!',
+      'Walang atrasan!'
+    ];
+
+    /**************************************************************
+     * PERSISTENT STORAGE & STATE
+     **************************************************************/
+    let highScore = Number(localStorage.getItem('tatay_highScore') || 0);
+    let highestRankIndex = Number(localStorage.getItem('tatay_highestRank') || 0);
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
+    let score = 0;
+    let coins = 0;
+    let kills = 0;
+    let currentRankIndex = 0;
+    let wave = 1;
+    let enemiesToSpawnInWave = 8;
+    let enemiesSpawnedInWave = 0;
+    let spawnTimer = 0;
+    let frames = 0;
+    let screenShake = 0;
+    let autoFire = true;
+
+    // Player Object
+    const player = {
+      x: 110,
+      y: 0, // calculated relative to road
+      width: 48,
+      height: 78,
+      speed: 4.5,
+      vx: 0,
+      weaponIndex: 0,
+      lastShotTime: 0,
+      recoil: 0,
+      muzzleFlash: 0,
+      walkCycle: 0,
+      hasShield: false,
+      superCharge: 0, // 0 to 100
+      superActiveTimer: 0, // frames remaining
+      speechText: '',
+      speechTimer: 0
+    };
+
+    // Entities Arrays
+    const bullets = [];
+    const enemies = [];
+    const particles = [];
+    const floatingTexts = [];
+    const coinPickups = [];
+
+    // Input State
+    const keys = { left: false, right: false, shoot: false };
+    let pointerShooting = false;
+
+    // Background Scenery
+    const buildings = [];
+    function initBuildings() {
+      buildings.length = 0;
+      for (let i = 0; i < 14; i++) {
+        buildings.push({
+          x: i * 110,
+          w: 85 + Math.random() * 45,
+          h: 110 + Math.random() * 150,
+          windows: Math.floor(2 + Math.random() * 4)
+        });
+      }
+    }
+
+    function resizeCanvas() {
+      const container = document.getElementById('canvasContainer');
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      player.y = canvas.height - 88;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    /**************************************************************
+     * UI RENDERING & UPDATES
+     **************************************************************/
+    function renderBadgesModal() {
+      const grid = document.getElementById('badgesGrid');
+      grid.innerHTML = '';
+      RANKS.forEach((r, idx) => {
+        const unlocked = idx <= highestRankIndex;
+        const badgeEl = document.createElement('div');
+        badgeEl.className = `p-1.5 rounded-lg border flex flex-col items-center justify-center ${
+          unlocked
+            ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+            : 'bg-slate-900 border-slate-800 text-slate-600 opacity-50'
+        }`;
+        badgeEl.innerHTML = `
+          <div class="text-base">${r.id === 1 ? '🔰' : r.icon}</div>
+          <div class="text-[9px] font-bold truncate w-full mt-0.5">${r.title.split(' ')[0]}</div>
+        `;
+        grid.appendChild(badgeEl);
+      });
+      document.getElementById('badgeProgressText').textContent = `${highestRankIndex + 1} / ${RANKS.length} Unlocked`;
+    }
+
+    function renderWeaponBar() {
+      const bar = document.getElementById('weaponBar');
+      bar.innerHTML = '';
+      WEAPONS.forEach((w, idx) => {
+        const isEquipped = player.weaponIndex === idx;
+        const canAfford = coins >= w.cost;
+
+        const btn = document.createElement('button');
+        btn.className = `hud-btn rounded-xl px-1.5 py-1 border text-left flex flex-col justify-between h-12 transition-all ${
+          isEquipped
+            ? 'bg-amber-500/25 border-amber-400 text-white shadow-md'
+            : w.unlocked
+            ? 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-slate-200'
+            : canAfford
+            ? 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-400/70 text-emerald-200'
+            : 'bg-slate-900 border-slate-800 text-slate-500 opacity-75'
+        }`;
+
+        btn.innerHTML = `
+          <div class="flex justify-between items-center w-full">
+            <span class="text-[10px] font-black px-1 rounded bg-slate-950/60 text-amber-400">${w.key}</span>
+            <span class="text-[10px] font-extrabold ${
+              w.unlocked ? 'text-sky-300' : canAfford ? 'text-emerald-400' : 'text-slate-500'
+            }">${w.unlocked ? 'OWNED' : '₱' + w.cost}</span>
+          </div>
+          <div class="text-[11px] sm:text-xs font-black truncate w-full">${w.shortName}</div>
+        `;
+
+        btn.addEventListener('click', () => selectOrBuyWeapon(idx));
+        bar.appendChild(btn);
+      });
+    }
+
+    function updateTopHud() {
+      document.getElementById('coinDisplay').textContent = coins;
+      document.getElementById('scoreDisplay').textContent = score;
+      document.getElementById('highScoreDisplay').textContent = highScore;
+      document.getElementById('waveDisplay').textContent = wave;
+
+      const r = RANKS[currentRankIndex];
+      document.getElementById('rankName').textContent = r.title;
+      document.getElementById('rankIcon').textContent = r.id === 1 ? '🔰' : r.icon;
+
+      // Shield Button
+      const shieldBtn = document.getElementById('buyShieldBtn');
+      const shieldText = document.getElementById('shieldText');
+      if (player.hasShield) {
+        shieldText.textContent = 'ACTIVE';
+        shieldBtn.className = 'hud-btn bg-sky-500/30 border border-sky-300 px-2.5 py-1 rounded-xl flex items-center gap-1.5 text-xs font-black text-sky-200';
+      } else {
+        shieldText.textContent = '₱150';
+        shieldBtn.className = `hud-btn ${
+          coins >= 150 ? 'bg-sky-900/90 border-sky-400 text-white' : 'bg-slate-800 border-slate-700 text-slate-400'
+        } border px-2.5 py-1 rounded-xl flex items-center gap-1.5 text-xs font-bold`;
+      }
+
+      // Super Bar
+      const superBtn = document.getElementById('superBtn');
+      const superFill = document.getElementById('superFill');
+      const superStatus = document.getElementById('superStatus');
+
+      if (player.superActiveTimer > 0) {
+        const pct = Math.ceil((player.superActiveTimer / 360) * 100);
+        superFill.style.width = `${pct}%`;
+        superStatus.textContent = 'ACTIVE!';
+        superBtn.classList.add('super-glow');
+      } else {
+        superFill.style.width = `${player.superCharge}%`;
+        superStatus.textContent = player.superCharge >= 100 ? 'READY!' : `(${Math.floor(player.superCharge)}%)`;
+        if (player.superCharge >= 100) {
+          superBtn.classList.add('super-glow');
+        } else {
+          superBtn.classList.remove('super-glow');
+        }
+      }
+
+      renderWeaponBar();
+    }
+
+    function selectOrBuyWeapon(idx) {
+      sfx.init();
+      const w = WEAPONS[idx];
+      if (w.unlocked) {
+        player.weaponIndex = idx;
+        triggerSpeech(`${w.shortName} Ready!`);
+        updateTopHud();
+      } else if (coins >= w.cost) {
+        coins -= w.cost;
+        w.unlocked = true;
+        player.weaponIndex = idx;
+        sfx.playRankUp();
+        triggerSpeech(`Unlocked ${w.shortName}!`);
+        createFloatingText(player.x, player.y - 60, `NEW GUN: ${w.shortName}!`, '#facc15');
+        updateTopHud();
+      } else {
+        createFloatingText(player.x + 20, player.y - 50, `Need ₱${w.cost}!`, '#f87171');
+      }
+    }
+
+    function buyShield() {
+      sfx.init();
+      if (player.hasShield) return;
+      if (coins >= 150) {
+        coins -= 150;
+        player.hasShield = true;
+        sfx.playCoin();
+        triggerSpeech('Ballistic Vest On!');
+        createFloatingText(player.x, player.y - 55, 'VEST SHIELD EQUIPPED!', '#38bdf8');
+        updateTopHud();
+      } else {
+        createFloatingText(player.x, player.y - 55, 'Need ₱150 for Vest!', '#f87171');
+      }
+    }
+
+    function activateSuperMode() {
+      sfx.init();
+      if (gameState !== 'PLAYING' || player.superActiveTimer > 0) return;
+
+      if (player.superCharge >= 100) {
+        player.superCharge = 0;
+        player.superActiveTimer = 360; // 6 seconds at 60fps
+        sfx.playSuper();
+        screenShake = 12;
+        triggerSpeech('SUPER TATAY MODE!!');
+        createFloatingText(player.x + 20, player.y - 70, '🔥 OVERDRIVE BARRAGE! 🔥', '#facc15');
+        updateTopHud();
+      } else if (coins >= 250) {
+        coins -= 250;
+        player.superCharge = 0;
+        player.superActiveTimer = 360;
+        sfx.playSuper();
+        screenShake = 12;
+        triggerSpeech('BACKUP BARRAGE!!');
+        updateTopHud();
+      } else {
+        createFloatingText(player.x, player.y - 55, 'Charge 100% or ₱250!', '#fbbf24');
+      }
+    }
+
+    function triggerSpeech(text) {
+      player.speechText = text;
+      player.speechTimer = 110;
+    }
+
+    function checkRankPromotion() {
+      for (let i = RANKS.length - 1; i >= 0; i--) {
+        if (kills >= RANKS[i].minKills) {
+          if (i > currentRankIndex) {
+            currentRankIndex = i;
+            if (currentRankIndex > highestRankIndex) {
+              highestRankIndex = currentRankIndex;
+              localStorage.setItem('tatay_highestRank', highestRankIndex);
+            }
+            sfx.playRankUp();
+            const toast = document.getElementById('rankToast');
+            toast.textContent = `${RANKS[i].icon} Promoted to ${RANKS[i].title}! ${RANKS[i].icon}`;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2800);
+          }
+          break;
+        }
+      }
+    }
+
+    /**************************************************************
+     * SPAWNING & WAVE LOGIC
+     **************************************************************/
+    function startWave(nextWaveNum) {
+      wave = nextWaveNum;
+      enemiesToSpawnInWave = 7 + wave * 4;
+      enemiesSpawnedInWave = 0;
+      spawnTimer = 0;
+
+      // Every 5th wave spawns a Giant Crime Boss
+      if (wave % 5 === 0) {
+        spawnBoss();
+      }
+
+      createFloatingText(canvas.width / 2, canvas.height / 2 - 40, `WAVE ${wave} INCOMING!`, '#facc15', 22);
+      updateTopHud();
+    }
+
+    function spawnBoss() {
+      const hp = 550 + wave * 220;
+      enemies.push({
+        type: 'BOSS',
+        name: wave % 10 === 0 ? 'MUTANT KINGPIN' : 'ZOMBIE CRIME LORD',
+        x: canvas.width + 60,
+        y: canvas.height - 88,
+        width: 78,
+        height: 112,
+        hp: hp,
+        maxHp: hp,
+        speed: 0.65 + Math.min(0.6, wave * 0.03),
+        reward: 180 + wave * 25,
+        scoreVal: 500,
+        knockbackResist: 0.85,
+        walkPhase: 0,
+        hitFlash: 0
+      });
+      document.getElementById('bossHud').classList.remove('hidden');
+    }
+
+    function spawnRegularEnemy() {
+      const roll = Math.random();
+      let type = 'RUNNER';
+      let width = 42;
+      let height = 72;
+      let hp = 45 + wave * 14;
+      let speed = 1.9 + Math.random() * 0.9 + Math.min(1.5, wave * 0.08);
+      let reward = 12 + Math.floor(Math.random() * 8);
+      let knockbackResist = 0.0;
+
+      if (wave >= 2 && roll > 0.55 && roll <= 0.86) {
+        type = 'ZOMBIE';
+        width = 48;
+        height = 76;
+        hp = 95 + wave * 26;
+        speed = 1.25 + Math.random() * 0.45 + Math.min(1.0, wave * 0.05);
+        reward = 22 + Math.floor(Math.random() * 10);
+        knockbackResist = 0.35;
+      } else if (wave >= 3 && roll > 0.86) {
+        type = 'TANK';
+        width = 62;
+        height = 90;
+        hp = 220 + wave * 55;
+        speed = 0.8 + Math.random() * 0.3;
+        reward = 45 + Math.floor(Math.random() * 15);
+        knockbackResist = 0.72;
+      }
+
+      enemies.push({
+        type,
+        x: canvas.width + 40,
+        y: canvas.height - 88,
+        width,
+        height,
+        hp,
+        maxHp: hp,
+        speed,
+        reward,
+        scoreVal: reward * 2,
+        knockbackResist,
+        walkPhase: Math.random() * Math.PI * 2,
+        hitFlash: 0
+      });
+    }
+
+    /**************************************************************
+     * SHOOTING, PARTICLES & FLOATING TEXT
+     **************************************************************/
+    function attemptShoot() {
+      const now = performance.now();
+      const weapon = WEAPONS[player.weaponIndex];
+      const effectiveFireRate = player.superActiveTimer > 0 ? weapon.fireRate * 0.45 : weapon.fireRate;
+
+      if (now - player.lastShotTime < effectiveFireRate) return;
+      player.lastShotTime = now;
+
+      sfx.playShoot(weapon.id);
+      player.recoil = 9;
+      player.muzzleFlash = 4;
+
+      // Random funny quote occasionally
+      if (Math.random() < 0.07 && player.speechTimer <= 0) {
+        triggerSpeech(SPEECH_QUOTES[Math.floor(Math.random() * SPEECH_QUOTES.length)]);
+      }
+
+      const gunTipX = player.x + 36;
+      const gunTipY = player.y - 38;
+
+      const pellets = player.superActiveTimer > 0 ? Math.max(2, weapon.pellets) : weapon.pellets;
+
+      for (let i = 0; i < pellets; i++) {
+        const angle = (Math.random() - 0.5) * weapon.spread;
+        bullets.push({
+          x: gunTipX,
+          y: gunTipY + (Math.random() - 0.5) * 4,
+          vx: Math.cos(angle) * weapon.speed,
+          vy: Math.sin(angle) * weapon.speed,
+          damage: player.superActiveTimer > 0 ? weapon.damage * 1.6 : weapon.damage,
+          color: player.superActiveTimer > 0 ? '#fde047' : weapon.color,
+          pierce: weapon.pierce,
+          knockback: weapon.knockback,
+          isPlasma: weapon.id === 4,
+          hitIds: new Set()
+        });
+      }
+    }
+
+    function createParticles(x, y, color, count = 10) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x,
+          y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.7) * 7,
+          size: 2.5 + Math.random() * 4,
+          color,
+          alpha: 1,
+          decay: 0.025 + Math.random() * 0.02
+        });
+      }
+    }
+
+    function createFloatingText(x, y, text, color = '#ffffff', size = 14) {
+      floatingTexts.push({
+        x,
+        y,
+        text,
+        color,
+        size,
+        vy: -1.4,
+        alpha: 1
+      });
+    }
+
+    /**************************************************************
+     * MAIN UPDATE LOOP
+     **************************************************************/
+    function updateGame() {
+      frames++;
+      player.y = canvas.height - 88;
+
+      // Player horizontal movement
+      player.vx = 0;
+      if (keys.left) player.vx = -player.speed;
+      if (keys.right) player.vx = player.speed;
+
+      player.x += player.vx;
+      const minX = 48;
+      const maxX = Math.min(canvas.width * 0.42, 340);
+      if (player.x < minX) player.x = minX;
+      if (player.x > maxX) player.x = maxX;
+
+      // Walking bob animation (always slightly strolling forward)
+      player.walkCycle += player.vx !== 0 ? 0.22 : 0.09;
+
+      if (player.recoil > 0) player.recoil *= 0.72;
+      if (player.muzzleFlash > 0) player.muzzleFlash--;
+      if (player.speechTimer > 0) player.speechTimer--;
+
+      if (player.superActiveTimer > 0) {
+        player.superActiveTimer--;
+        if (player.superActiveTimer % 15 === 0) updateTopHud();
+      }
+
+      // Shooting trigger
+      if (autoFire || keys.shoot || pointerShooting) {
+        attemptShoot();
+      }
+
+      // Spawn Wave Enemies
+      spawnTimer++;
+      const spawnInterval = Math.max(26, 82 - wave * 4);
+      if (enemiesSpawnedInWave < enemiesToSpawnInWave && spawnTimer >= spawnInterval) {
+        spawnTimer = 0;
+        enemiesSpawnedInWave++;
+        spawnRegularEnemy();
+      }
+
+      // Check Wave Cleared
+      if (enemiesSpawnedInWave >= enemiesToSpawnInWave && enemies.length === 0) {
+        coins += 40;
+        createFloatingText(player.x, player.y - 75, 'WAVE BONUS +₱40!', '#34d399', 15);
+        startWave(wave + 1);
+      }
+
+      // Update Bullets
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.vx;
+        b.y += b.vy;
+
+        if (b.x > canvas.width + 50 || b.y < 0 || b.y > canvas.height) {
+          bullets.splice(i, 1);
+          continue;
+        }
+
+        // Bullet vs Enemy Collision
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          const e = enemies[j];
+          if (b.hitIds.has(e)) continue;
+
+          if (
+            b.x > e.x - e.width / 2 &&
+            b.x < e.x + e.width / 2 &&
+            b.y > e.y - e.height &&
+            b.y < e.y
+          ) {
+            b.hitIds.add(e);
+            e.hp -= b.damage;
+            e.hitFlash = 4;
+            e.x += b.knockback * (1 - e.knockbackResist);
+
+            createParticles(b.x, b.y, e.type === 'RUNNER' ? '#ef4444' : '#84cc16', 5);
+            createFloatingText(
+              e.x + (Math.random() - 0.5) * 16,
+              e.y - e.height - 6,
+              `-${Math.round(b.damage)}`,
+              b.isPlasma ? '#d8b4fe' : '#fef08a',
+              12
+            );
+
+            b.pierce--;
+            if (b.pierce <= 0) {
+              bullets.splice(i, 1);
+              break;
+            }
+          }
+        }
+      }
+
+      // Update Enemies
+      let activeBoss = null;
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+
+        // Check enemy death
+        if (e.hp <= 0) {
+          kills++;
+          score += e.scoreVal;
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('tatay_highScore', highScore);
+          }
+
+          if (player.superActiveTimer === 0) {
+            player.superCharge = Math.min(100, player.superCharge + (e.type === 'BOSS' ? 45 : 6));
+          }
+
+          // Drop Gold Peso Coin Animation
+          coinPickups.push({
+            x: e.x,
+            y: e.y - 28,
+            vy: -4.5,
+            amount: e.reward,
+            timer: 35
+          });
+
+          coins += e.reward;
+          sfx.playCoin();
+          createParticles(e.x, e.y - e.height / 2, '#22c55e', 14);
+          createFloatingText(e.x, e.y - e.height - 15, `+₱${e.reward}`, '#4ade80', 14);
+
+          checkRankPromotion();
+          updateTopHud();
+
+          if (e.type === 'BOSS') {
+            screenShake = 16;
+            document.getElementById('bossHud').classList.add('hidden');
+          }
+
+          enemies.splice(i, 1);
+          continue;
+        }
+
+        // Move Enemy Left toward Tatay
+        e.x -= e.speed;
+        e.walkPhase += 0.14;
+        if (e.hitFlash > 0) e.hitFlash--;
+
+        if (e.type === 'BOSS') activeBoss = e;
+
+        // Check Enemy Reaching Player
+        const reachDist = player.x + 26;
+        if (e.x - e.width / 2 <= reachDist) {
+          if (player.superActiveTimer > 0) {
+            // Super mode knocks them back violently
+            e.hp -= 120;
+            e.x += 95;
+            screenShake = 8;
+            createParticles(e.x, e.y - 40, '#facc15', 15);
+          } else if (player.hasShield) {
+            // Ballistic Vest saves player once!
+            player.hasShield = false;
+            screenShake = 14;
+            sfx.playShoot(1);
+            triggerSpeech('Vest saved me!');
+            createFloatingText(player.x, player.y - 70, '🦺 VEST BROKEN!', '#38bdf8', 16);
+            // Push all close enemies back
+            enemies.forEach(en => {
+              if (en.x < player.x + 220) en.x += 160;
+            });
+            updateTopHud();
+          } else {
+            // Classic One-Hit Game Over
+            triggerGameOver();
+            return;
+          }
+        }
+      }
+
+      // Boss HUD Sync
+      if (activeBoss) {
+        const bossHud = document.getElementById('bossHud');
+        bossHud.classList.remove('hidden');
+        document.getElementById('bossName').textContent = activeBoss.name;
+        document.getElementById('bossHpText').textContent = `${Math.max(0, Math.ceil(activeBoss.hp))} / ${activeBoss.maxHp}`;
+        document.getElementById('bossHpBar').style.width = `${Math.max(0, (activeBoss.hp / activeBoss.maxHp) * 100)}%`;
+      } else {
+        document.getElementById('bossHud').classList.add('hidden');
+      }
+
+      // Update Coin Pickups
+      for (let i = coinPickups.length - 1; i >= 0; i--) {
+        const c = coinPickups[i];
+        c.y += c.vy;
+        c.vy += 0.28;
+        if (c.y > canvas.height - 88) {
+          c.y = canvas.height - 88;
+          c.vy = -2.2;
+        }
+        c.timer--;
+        if (c.timer <= 0) coinPickups.splice(i, 1);
+      }
+
+      // Update Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.25;
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+
+      // Update Floating Texts
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy;
+        ft.alpha -= 0.02;
+        if (ft.alpha <= 0) floatingTexts.splice(i, 1);
+      }
+
+      if (screenShake > 0) screenShake *= 0.85;
+    }
+
+    /**************************************************************
+     * DRAWING & RENDER ENGINE
+     **************************************************************/
+    function drawScene() {
+      ctx.save();
+      if (screenShake > 0.5) {
+        ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+      }
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const groundY = h - 88;
+
+      // 1. Night Sky Gradient
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+      skyGrad.addColorStop(0, '#060913');
+      skyGrad.addColorStop(0.6, '#111827');
+      skyGrad.addColorStop(1, '#1e1b4b');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, groundY);
+
+      // Full Moon
+      ctx.fillStyle = '#fef9c3';
+      ctx.beginPath();
+      ctx.arc(w - 95, 65, 28, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Parallax Manila Buildings Silhouette
+      const scrollOffset = (frames * 0.4) % 1540;
+      buildings.forEach((b, idx) => {
+        let bx = (b.x - scrollOffset) % 1540;
+        if (bx < -140) bx += 1540;
+
+        ctx.fillStyle = idx % 2 === 0 ? '#0f172a' : '#1e293b';
+        ctx.fillRect(bx, groundY - b.h, b.w, b.h);
+
+        // Glowing Windows
+        ctx.fillStyle = '#fde047';
+        for (let wy = groundY - b.h + 16; wy < groundY - 28; wy += 24) {
+          for (let wx = bx + 12; wx < bx + b.w - 16; wx += 20) {
+            if ((wx + wy + idx) % 3 === 0) {
+              ctx.fillRect(wx, wy, 8, 12);
+            }
+          }
+        }
+      });
+
+      // 3. Streetlamps
+      const lampSpacing = 220;
+      const lampOffset = (frames * 1.4) % lampSpacing;
+      for (let lx = w - lampOffset; lx > -60; lx -= lampSpacing) {
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(lx, groundY - 125, 5, 125);
+        ctx.fillRect(lx, groundY - 125, 22, 5);
+
+        // Warm Streetlight Cone
+        const coneGrad = ctx.createRadialGradient(lx + 18, groundY - 120, 4, lx + 18, groundY - 40, 95);
+        coneGrad.addColorStop(0, 'rgba(253, 224, 71, 0.35)');
+        coneGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+        ctx.fillStyle = coneGrad;
+        ctx.beginPath();
+        ctx.arc(lx + 18, groundY - 60, 95, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 4. Asphalt Road & Sidewalk Curb
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(0, groundY - 8, w, 10);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, groundY, w, h - groundY);
+
+      // Dashed Yellow Road Lines
+      ctx.fillStyle = '#f59e0b';
+      const dashOffset = (frames * 2.2) % 90;
+      for (let dx = w - dashOffset; dx > -60; dx -= 90) {
+        ctx.fillRect(dx, groundY + 38, 45, 6);
+      }
+
+      // 5. Draw Coin Pickups
+      coinPickups.forEach(c => {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#713f12';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('₱', 0, 1);
+        ctx.restore();
+      });
+
+      // 6. Draw Tatay Player
+      drawPlayer();
+
+      // 7. Draw Enemies
+      enemies.forEach(e => drawEnemy(e));
+
+      // 8. Draw Bullets
+      bullets.forEach(b => {
+        ctx.save();
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = b.isPlasma ? 14 : 6;
+        ctx.beginPath();
+        if (b.isPlasma) {
+          ctx.roundRect(b.x - 14, b.y - 4, 28, 8, 4);
+        } else {
+          ctx.roundRect(b.x - 6, b.y - 2, 12, 4, 2);
+        }
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // 9. Draw Particles
+      particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+        ctx.restore();
+      });
+
+      // 10. Draw Floating Damage & Coin Popups
+      floatingTexts.forEach(ft => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.font = `900 ${ft.size}px 'Inter', sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.strokeText(ft.text, ft.x, ft.y);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      });
+
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      ctx.save();
+      const bob = Math.sin(player.walkCycle) * 3;
+      const rx = player.x - player.recoil;
+      const ry = player.y + bob;
+
+      // Super Mode Golden Aura
+      if (player.superActiveTimer > 0) {
+        ctx.save();
+        const grad = ctx.createRadialGradient(rx, ry - 40, 10, rx, ry - 40, 56);
+        grad.addColorStop(0, 'rgba(250, 204, 21, 0.7)');
+        grad.addColorStop(1, 'rgba(250, 204, 21, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(rx, ry - 40, 56, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Shield Bubble
+      if (player.hasShield) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(rx, ry - 38, 46, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Legs (Blue Jeans walking)
+      const legSwing = Math.sin(player.walkCycle) * 7;
+      ctx.fillStyle = '#1d4ed8';
+      ctx.fillRect(rx - 10 + legSwing, ry - 24, 9, 24);
+      ctx.fillRect(rx + 2 - legSwing, ry - 24, 9, 24);
+
+      // Boots
+      ctx.fillStyle = '#451a03';
+      ctx.fillRect(rx - 10 + legSwing, ry - 6, 12, 6);
+      ctx.fillRect(rx + 2 - legSwing, ry - 6, 12, 6);
+
+      // Torso (Signature Checkered Red/Blue Polo Barong)
+      ctx.fillStyle = '#b91c1c';
+      ctx.beginPath();
+      ctx.roundRect(rx - 14, ry - 54, 28, 32, 5);
+      ctx.fill();
+
+      // Plaid stripes on shirt
+      ctx.strokeStyle = '#1e3a8a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(rx - 12, ry - 44);
+      ctx.lineTo(rx + 12, ry - 44);
+      ctx.moveTo(rx - 12, ry - 34);
+      ctx.lineTo(rx + 12, ry - 34);
+      ctx.moveTo(rx, ry - 54);
+      ctx.lineTo(rx, ry - 22);
+      ctx.stroke();
+
+      // Head
+      ctx.fillStyle = '#d97706'; // warm tan skin tone
+      ctx.beginPath();
+      ctx.arc(rx, ry - 66, 14, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Hair (Spiky Gold if Super Mode, Classic Dark/Grey otherwise)
+      ctx.fillStyle = player.superActiveTimer > 0 ? '#facc15' : '#1f2937';
+      ctx.beginPath();
+      ctx.arc(rx - 2, ry - 70, 14, Math.PI, Math.PI * 2.1);
+      ctx.fill();
+
+      // Aviator Sunglasses
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(rx + 1, ry - 70, 12, 6);
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(rx + 1, ry - 70, 12, 6);
+
+      // Determined Grimace Mouth
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(rx + 3, ry - 58);
+      ctx.lineTo(rx + 10, ry - 58);
+      ctx.stroke();
+
+      // Weapon Rendering based on equipped gun
+      const wId = player.weaponIndex;
+      ctx.fillStyle = '#e2e8f0';
+      if (wId === 0) {
+        // Pistol
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(rx + 10, ry - 43, 18, 6);
+        ctx.fillRect(rx + 10, ry - 39, 5, 8);
+      } else if (wId === 1) {
+        // Shotgun
+        ctx.fillStyle = '#78350f';
+        ctx.fillRect(rx + 4, ry - 42, 14, 6);
+        ctx.fillStyle = '#334155';
+        ctx.fillRect(rx + 14, ry - 43, 24, 5);
+      } else if (wId === 2) {
+        // FN SCAR Rifle (Desert Tan)
+        ctx.fillStyle = '#ca8a04';
+        ctx.fillRect(rx + 4, ry - 44, 28, 8);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(rx + 30, ry - 42, 12, 4);
+        ctx.fillRect(rx + 16, ry - 36, 5, 9);
+      } else if (wId === 3) {
+        // Heavy Minigun
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(rx + 4, ry - 40, 22, 12);
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(rx + 24, ry - 39, 22, 3);
+        ctx.fillRect(rx + 24, ry - 34, 22, 3);
+      } else if (wId === 4) {
+        // Plasma Cannon
+        ctx.fillStyle = '#6b21a8';
+        ctx.fillRect(rx + 4, ry - 45, 34, 11);
+        ctx.fillStyle = '#c084fc';
+        ctx.fillRect(rx + 14, ry - 42, 18, 5);
+      }
+
+      // Muzzle Flash
+      if (player.muzzleFlash > 0) {
+        ctx.fillStyle = player.superActiveTimer > 0 ? '#fef08a' : '#fb923c';
+        ctx.beginPath();
+        ctx.arc(rx + 44, ry - 40, 9 + Math.random() * 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Comic Speech Bubble
+      if (player.speechTimer > 0 && player.speechText) {
+        ctx.save();
+        ctx.font = 'bold 12px Inter, sans-serif';
+        const textW = ctx.measureText(player.speechText).width + 16;
+        const bx = rx - 10;
+        const by = ry - 110;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, textW, 24, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(player.speechText, bx + 8, by + 12);
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    function drawEnemy(e) {
+      ctx.save();
+      const bob = Math.sin(e.walkPhase) * 3;
+      const ex = e.x;
+      const ey = e.y + bob;
+
+      if (e.hitFlash > 0) {
+        ctx.filter = 'brightness(2.2)';
+      }
+
+      // Enemy Health Bar (for damaged enemies)
+      if (e.hp < e.maxHp && e.type !== 'BOSS') {
+        const barW = 36;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(ex - barW / 2, ey - e.height - 12, barW, 5);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(ex - barW / 2, ey - e.height - 12, barW * (e.hp / e.maxHp), 5);
+      }
+
+      // Legs
+      const stride = Math.sin(e.walkPhase) * 6;
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(ex - 9 + stride, ey - 22, 8, 22);
+      ctx.fillRect(ex + 2 - stride, ey - 22, 8, 22);
+
+      if (e.type === 'RUNNER') {
+        // Fast Street Thug
+        ctx.fillStyle = '#374151';
+        ctx.beginPath();
+        ctx.roundRect(ex - 13, ey - 50, 26, 28, 4);
+        ctx.fill();
+
+        // Head + Red Bandana
+        ctx.fillStyle = '#ca8a04';
+        ctx.beginPath();
+        ctx.arc(ex, ey - 60, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(ex - 12, ey - 64, 24, 6);
+
+        // Knife / Bat reaching left
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillRect(ex - 26, ey - 42, 14, 4);
+      } else if (e.type === 'ZOMBIE') {
+        // Green Undead Bruiser
+        ctx.fillStyle = '#3f6212';
+        ctx.beginPath();
+        ctx.roundRect(ex - 15, ey - 54, 30, 32, 5);
+        ctx.fill();
+
+        ctx.fillStyle = '#65a30d';
+        ctx.beginPath();
+        ctx.arc(ex - 2, ey - 64, 13, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glowing Red Eyes
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(ex - 10, ey - 67, 5, 4);
+
+        // Outstretched Zombie Arms
+        ctx.fillStyle = '#65a30d';
+        ctx.fillRect(ex - 28, ey - 48, 18, 6);
+      } else if (e.type === 'TANK') {
+        // Heavy Armored Riot Brute
+        ctx.fillStyle = '#1e1b4b';
+        ctx.beginPath();
+        ctx.roundRect(ex - 22, ey - 66, 44, 44, 8);
+        ctx.fill();
+
+        ctx.fillStyle = '#4d7c0f';
+        ctx.beginPath();
+        ctx.arc(ex - 2, ey - 76, 16, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Riot Helmet Visor
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(ex - 16, ey - 80, 14, 6);
+      } else if (e.type === 'BOSS') {
+        // Giant Crime Lord / Mutant Boss
+        ctx.fillStyle = '#581c87';
+        ctx.beginPath();
+        ctx.roundRect(ex - 30, ey - 82, 60, 60, 10);
+        ctx.fill();
+
+        // Gold Chain
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(ex, ey - 70, 16, 0, Math.PI);
+        ctx.stroke();
+
+        // Boss Head
+        ctx.fillStyle = '#4d7c0f';
+        ctx.beginPath();
+        ctx.arc(ex - 3, ey - 96, 20, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Crown / Shades
+        ctx.fillStyle = '#facc15';
+        ctx.fillRect(ex - 16, ey - 116, 28, 8);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(ex - 18, ey - 98, 12, 6);
+      }
+
+      ctx.restore();
+    }
+
+    /**************************************************************
+     * GAME FLOW (START, RESET, GAME OVER)
+     **************************************************************/
+    function startGame() {
+      sfx.init();
+      score = 0;
+      coins = 0;
+      kills = 0;
+      currentRankIndex = 0;
+      wave = 1;
+
+      // Reset Weapons (keep Pistol unlocked)
+      WEAPONS.forEach((w, idx) => {
+        w.unlocked = idx === 0;
+      });
+
+      player.x = 110;
+      player.weaponIndex = 0;
+      player.hasShield = false;
+      player.superCharge = 0;
+      player.superActiveTimer = 0;
+      triggerSpeech('Walang atrasan!');
+
+      bullets.length = 0;
+      enemies.length = 0;
+      particles.length = 0;
+      floatingTexts.length = 0;
+      coinPickups.length = 0;
+
+      document.getElementById('overlayModal').classList.add('hidden');
+      document.getElementById('bossHud').classList.add('hidden');
+
+      gameState = 'PLAYING';
+      startWave(1);
+      updateTopHud();
+    }
+
+    function triggerGameOver() {
+      gameState = 'GAMEOVER';
+      sfx.playGameOver();
+      screenShake = 20;
+
+      document.getElementById('modalTitle').textContent = 'OVERRUN ON THE STREET!';
+      document.getElementById('modalSubtitle').textContent =
+        'A criminal broke through your perimeter! Upgrade your arsenal or equip a Ballistic Vest next patrol.';
+
+      document.getElementById('gameOverStats').classList.remove('hidden');
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalWave').textContent = wave;
+      document.getElementById('finalRank').textContent = RANKS[currentRankIndex].title;
+      document.getElementById('startBtn').textContent = 'PATROL AGAIN ↻';
+
+      renderBadgesModal();
+      document.getElementById('overlayModal').classList.remove('hidden');
+    }
+
+    /**************************************************************
+     * INPUT LISTENERS (KEYBOARD, MOUSE & TOUCH)
+     **************************************************************/
+    window.addEventListener('keydown', e => {
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (gameState !== 'PLAYING') {
+          startGame();
+        } else {
+          keys.shoot = true;
+        }
+      }
+      if (e.code === 'KeyE' || e.code === 'ShiftLeft') activateSuperMode();
+      if (e.key >= '1' && e.key <= '5') {
+        selectOrBuyWeapon(Number(e.key) - 1);
+      }
+    });
+
+    window.addEventListener('keyup', e => {
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+      if (e.code === 'Space') keys.shoot = false;
+    });
+
+    // Canvas Tap/Click to Shoot
+    canvas.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      sfx.init();
+      pointerShooting = true;
+    });
+    window.addEventListener('pointerup', () => {
+      pointerShooting = false;
+    });
+
+    // Touch Move Buttons
+    const leftBtn = document.getElementById('moveLeftBtn');
+    const rightBtn = document.getElementById('moveRightBtn');
+    const fireBtn = document.getElementById('fireBtn');
+
+    leftBtn.addEventListener('pointerdown', e => { e.preventDefault(); keys.left = true; });
+    leftBtn.addEventListener('pointerup', () => { keys.left = false; });
+    leftBtn.addEventListener('pointerleave', () => { keys.left = false; });
+
+    rightBtn.addEventListener('pointerdown', e => { e.preventDefault(); keys.right = true; });
+    rightBtn.addEventListener('pointerup', () => { keys.right = false; });
+    rightBtn.addEventListener('pointerleave', () => { keys.right = false; });
+
+    fireBtn.addEventListener('pointerdown', e => { e.preventDefault(); sfx.init(); keys.shoot = true; });
+    fireBtn.addEventListener('pointerup', () => { keys.shoot = false; });
+    fireBtn.addEventListener('pointerleave', () => { keys.shoot = false; });
+
+    // Top & Bottom Action Buttons
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('buyShieldBtn').addEventListener('click', buyShield);
+    document.getElementById('superBtn').addEventListener('click', activateSuperMode);
+
+    document.getElementById('autoFireBtn').addEventListener('click', e => {
+      autoFire = !autoFire;
+      e.currentTarget.textContent = `AUTO: ${autoFire ? 'ON' : 'OFF'}`;
+      e.currentTarget.className = `hud-btn border px-2.5 py-1.5 rounded-xl text-xs font-black text-white ${
+        autoFire ? 'bg-emerald-700 border-emerald-400' : 'bg-slate-800 border-slate-600 text-slate-400'
+      }`;
+    });
+
+    document.getElementById('muteBtn').addEventListener('click', e => {
+      sfx.muted = !sfx.muted;
+      e.currentTarget.textContent = sfx.muted ? '🔇' : '🔊';
+    });
+
+    /**************************************************************
+     * INITIALIZATION & ANIMATION LOOP
+     **************************************************************/
+    function mainLoop() {
+      if (gameState === 'PLAYING') {
+        updateGame();
+      } else {
+        frames++;
+      }
+      drawScene();
+      requestAnimationFrame(mainLoop);
+    }
+
+    window.onload = function () {
+      resizeCanvas();
+      initBuildings();
+      renderBadgesModal();
+      updateTopHud();
+      mainLoop();
+    };
+  </script>
+</body>
+</html>
